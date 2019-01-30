@@ -1,0 +1,69 @@
+<?php
+
+require_once(__DIR__ . '/mustache/src/Mustache/Autoloader.php');
+Mustache_Autoloader::register();
+
+class TemplateEngineMustache extends TemplateEngine implements Module {
+
+  public static function getModuleInfo() {
+        return array(
+            'title'    => 'Template Engine Mustache',
+            'summary'  => 'Mustache templates for the TemplateEngineFactory',
+            'version'  => 100,
+            'author'   => 'Blue Tomato',
+            'href'     => 'https://github.com/blue-tomato/TemplateEngineMustache',
+            'singular' => false,
+            'autoload' => false,
+            'requires' => array('TemplateEngineFactory'),
+        );
+  }
+
+  public static function getDefaultConfig() {
+      /*
+       * Upcoming $config from parent's default includes configurations for
+       * - templates_path
+       * - global_template
+       * - template_files_suffix
+      */
+      $config = parent::getDefaultConfig();
+
+      return array_merge($config, array(
+        'template_files_suffix'  => 'mustache',
+      ));
+  }
+
+  public function getTemplatesPath() {
+    $path = ltrim($this->getConfig('templates_path'), '/');
+    return $this->wire('config')->paths->site . rtrim($path, '/') . '/';
+  }
+
+  protected $mustache;
+  protected $data;
+
+  public function initEngine() {
+    $config = array(
+      'loader' => new Mustache_Loader_FilesystemLoader($this->getTemplatesPath()),
+      'cache' => $this->wire('config')->paths->assets . '/cache/mustache',
+    );
+
+    $partailsPath = $this->getTemplatesPath().'/partials';
+    if(is_dir($partailsPath)) {
+      $config['partials_loader'] = new Mustache_Loader_FilesystemLoader($partailsPath);
+    }
+
+    $this->mustache = new Mustache_Engine($config);
+    $this->data = (object) [];
+  }
+
+  public function setHelpers($helpers = []) {
+    $this->mustache->setHelpers($helpers);
+  }
+
+  public function set($key, $value) {
+    $this->data->$key = $value;
+  }
+
+  public function render() {
+    return $this->mustache->render($this->getFilename(), $this->data);
+  }
+}
